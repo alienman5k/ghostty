@@ -107,7 +107,7 @@ pub fn main() !void {
     try writer.writeAll(
         \\<?xml version="1.0" encoding="UTF-8"?>
         \\<gresources>
-        \\  <gresource prefix="/com/mitchellh/ghostty">
+        \\  <gresource prefix="/com/ghostty/terminal">
         \\
     );
     for (css_files) |css_file| {
@@ -118,18 +118,18 @@ pub fn main() !void {
     }
     try writer.writeAll(
         \\  </gresource>
-        \\  <gresource prefix="/com/mitchellh/ghostty/icons">
+        \\  <gresource prefix="/com/ghostty/terminal/icons">
         \\
     );
     for (icons) |icon| {
         try writer.print(
-            "    <file alias=\"{s}/apps/com.mitchellh.ghostty.png\">images/icons/icon_{s}.png</file>\n",
+            "    <file alias=\"{s}/apps/com.ghostty.terminal.png\">images/icons/icon_{s}.png</file>\n",
             .{ icon.alias, icon.source },
         );
     }
     try writer.writeAll(
         \\  </gresource>
-        \\  <gresource prefix="/com/mitchellh/ghostty/ui">
+        \\  <gresource prefix="/com/ghostty/terminal/ui">
         \\
     );
     for (ui_files) |ui_file| {

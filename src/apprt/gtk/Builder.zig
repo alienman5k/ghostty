@@ -49,7 +49,7 @@ pub fn init(
                     );
                     _ = @embedFile(blp_filename);
                     break :resource_path std.fmt.comptimePrint(
-                        "/com/mitchellh/ghostty/ui/{d}.{d}/{s}.ui",
+                        "/com/ghostty/terminal/ui/{d}.{d}/{s}.ui",
                         .{
                             file.major,
                             file.minor,
@@ -90,7 +90,7 @@ pub fn init(
                     );
                     _ = @embedFile(blp_filename);
                     break :resource_path std.fmt.comptimePrint(
-                        "/com/mitchellh/ghostty/ui/{d}.{d}/{s}.ui",
+                        "/com/ghostty/terminal/ui/{d}.{d}/{s}.ui",
                         .{
                             file.major,
                             file.minor,

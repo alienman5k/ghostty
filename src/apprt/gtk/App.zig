@@ -323,7 +323,7 @@ pub fn init(core_app: *CoreApp, opts: Options) !App {
 
     // force the resource path to a known value so that it doesn't depend on
     // the app id and load in compiled resources
-    gio_app.setResourceBasePath("/com/mitchellh/ghostty");
+    gio_app.setResourceBasePath("/com/ghostty/terminal");
     gio.resourcesRegister(@ptrCast(@alignCast(c.ghostty_get_resource() orelse {
         log.err("unable to load resources", .{});
         return error.GtkNoResources;
@@ -907,7 +907,7 @@ fn showDesktopNotification(
     defer notification.unref();
     notification.setBody(n.body);
 
-    const icon = gio.ThemedIcon.new("com.mitchellh.ghostty");
+    const icon = gio.ThemedIcon.new("com.ghostty.terminal");
     defer icon.unref();
     notification.setIcon(icon.as(gio.Icon));
 

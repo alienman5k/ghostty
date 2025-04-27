@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>com.mitchellh.ghostty</id>
-  <launchable type="desktop-id">com.mitchellh.ghostty.desktop</launchable>
+  <id>com.ghostty.terminal</id>
+  <launchable type="desktop-id">com.ghostty.terminal.desktop</launchable>
   <name>Ghostty</name>
   <url type="homepage">https://ghostty.org</url>
   <url type="help">https://ghostty.org/docs</url>
@@ -38,7 +38,7 @@
     -->
     <display_length compare="ge">360</display_length>
   </requires>
-  <translation type="gettext">com.mitchellh.ghostty</translation>
+  <translation type="gettext">com.ghostty.terminal</translation>
 
   <!--
     TODO: Generate manifest location data.
@@ -46,7 +46,7 @@
     Ref: https://docs.flathub.org/docs/for-app-authors/metainfo-guidelines#manifest-location
 
   <custom>
-    <value key="flathub::manifest">https://github.com/ghostty-org/ghostty/blob/<hash>/flatpak/com.mitchellh.ghostty.yml</value>
+    <value key="flathub::manifest">https://github.com/ghostty-org/ghostty/blob/<hash>/flatpak/com.ghostty.terminal.yml</value>
   </custom>
   -->
 

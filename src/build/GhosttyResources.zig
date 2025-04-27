@@ -199,19 +199,19 @@ pub fn init(b: *std.Build, cfg: *const Config) !GhosttyResources {
         // Desktop file so that we have an icon and other metadata
         try steps.append(&b.addInstallFile(
             b.path("dist/linux/app.desktop"),
-            "share/applications/com.mitchellh.ghostty.desktop",
+            "share/applications/com.ghostty.terminal.desktop",
         ).step);
 
         // AppStream metainfo so that application has rich metadata within app stores
         try steps.append(&b.addInstallFile(
-            b.path("dist/linux/com.mitchellh.ghostty.metainfo.xml"),
-            "share/metainfo/com.mitchellh.ghostty.metainfo.xml",
+            b.path("dist/linux/com.ghostty.terminal.metainfo.xml"),
+            "share/metainfo/com.ghostty.terminal.metainfo.xml",
         ).step);
 
         // Right click menu action for Plasma desktop
         try steps.append(&b.addInstallFile(
             b.path("dist/linux/ghostty_dolphin.desktop"),
-            "share/kio/servicemenus/com.mitchellh.ghostty.desktop",
+            "share/kio/servicemenus/com.ghostty.terminal.desktop",
         ).step);
 
         // Right click menu action for Nautilus. Note that this _must_ be named
@@ -225,47 +225,47 @@ pub fn init(b: *std.Build, cfg: *const Config) !GhosttyResources {
         // that will be used for the desktop.
         try steps.append(&b.addInstallFile(
             b.path("images/icons/icon_16.png"),
-            "share/icons/hicolor/16x16/apps/com.mitchellh.ghostty.png",
+            "share/icons/hicolor/16x16/apps/com.ghostty.terminal.png",
         ).step);
         try steps.append(&b.addInstallFile(
             b.path("images/icons/icon_32.png"),
-            "share/icons/hicolor/32x32/apps/com.mitchellh.ghostty.png",
+            "share/icons/hicolor/32x32/apps/com.ghostty.terminal.png",
         ).step);
         try steps.append(&b.addInstallFile(
             b.path("images/icons/icon_128.png"),
-            "share/icons/hicolor/128x128/apps/com.mitchellh.ghostty.png",
+            "share/icons/hicolor/128x128/apps/com.ghostty.terminal.png",
         ).step);
         try steps.append(&b.addInstallFile(
             b.path("images/icons/icon_256.png"),
-            "share/icons/hicolor/256x256/apps/com.mitchellh.ghostty.png",
+            "share/icons/hicolor/256x256/apps/com.ghostty.terminal.png",
         ).step);
         try steps.append(&b.addInstallFile(
             b.path("images/icons/icon_512.png"),
-            "share/icons/hicolor/512x512/apps/com.mitchellh.ghostty.png",
+            "share/icons/hicolor/512x512/apps/com.ghostty.terminal.png",
         ).step);
         // Flatpaks only support icons up to 512x512.
         if (!cfg.flatpak) {
             try steps.append(&b.addInstallFile(
                 b.path("images/icons/icon_1024.png"),
-                "share/icons/hicolor/1024x1024/apps/com.mitchellh.ghostty.png",
+                "share/icons/hicolor/1024x1024/apps/com.ghostty.terminal.png",
             ).step);
         }
 
         try steps.append(&b.addInstallFile(
             b.path("images/icons/icon_16@2x.png"),
-            "share/icons/hicolor/16x16@2/apps/com.mitchellh.ghostty.png",
+            "share/icons/hicolor/16x16@2/apps/com.ghostty.terminal.png",
         ).step);
         try steps.append(&b.addInstallFile(
             b.path("images/icons/icon_32@2x.png"),
-            "share/icons/hicolor/32x32@2/apps/com.mitchellh.ghostty.png",
+            "share/icons/hicolor/32x32@2/apps/com.ghostty.terminal.png",
         ).step);
         try steps.append(&b.addInstallFile(
             b.path("images/icons/icon_128@2x.png"),
-            "share/icons/hicolor/128x128@2/apps/com.mitchellh.ghostty.png",
+            "share/icons/hicolor/128x128@2/apps/com.ghostty.terminal.png",
         ).step);
         try steps.append(&b.addInstallFile(
             b.path("images/icons/icon_256@2x.png"),
-            "share/icons/hicolor/256x256@2/apps/com.mitchellh.ghostty.png",
+            "share/icons/hicolor/256x256@2/apps/com.ghostty.terminal.png",
         ).step);
     }
 

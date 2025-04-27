@@ -1,4 +1,4 @@
-app-id: com.mitchellh.ghostty.Devel
+app-id: com.ghostty.terminal.Devel
 runtime: org.gnome.Platform
 runtime-version: "47"
 sdk: org.gnome.Sdk
@@ -7,9 +7,9 @@ sdk-extensions:
 default-branch: tip
 command: ghostty
 # Integrate the rename into zig build, maybe?
-rename-desktop-file: com.mitchellh.ghostty.desktop
-rename-appdata-file: com.mitchellh.ghostty.metainfo.xml
-rename-icon: com.mitchellh.ghostty
+rename-desktop-file: com.ghostty.terminal.desktop
+rename-appdata-file: com.ghostty.terminal.metainfo.xml
+rename-icon: com.ghostty.terminal
 desktop-file-name-suffix: " (Devel)"
 finish-args:
   # 3D rendering

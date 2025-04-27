@@ -972,7 +972,7 @@ fn gtkActionAbout(
     self: *Window,
 ) callconv(.C) void {
     const name = "Ghostty";
-    const icon = "com.mitchellh.ghostty";
+    const icon = "com.ghostty.terminal";
     const website = "https://ghostty.org";
 
     if (adw_version.supportsDialogs()) {

@@ -6,6 +6,6 @@ Actions=RunGhosttyDir
 
 [Desktop Action RunGhosttyDir]
 Name=Open Ghostty Here
-Icon=com.mitchellh.ghostty
+Icon=com.ghostty.terminal
 Exec=ghostty --working-directory=%F --gtk-single-instance=false
 

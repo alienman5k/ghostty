@@ -453,7 +453,7 @@ pub const App = struct {
 
             // Our tabbing ID allows all of our windows to group together
             const tabbing_id = try macos.foundation.String.createWithBytes(
-                "com.mitchellh.ghostty.window",
+                "com.ghostty.terminal.window",
                 .utf8,
                 false,
             );

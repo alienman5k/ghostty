@@ -118,6 +118,12 @@ default_cursor_color: ?terminal.color.RGB,
 /// foreground color as the cursor color.
 cursor_invert: bool,
 
+/// When `cursor_invert` is true and this is true it will force to use high
+/// contrast colors by comparing with the current cell luminance. 
+/// When the value is light we will use White text and when it is
+/// dark we use Black text
+cursor_invert_high_contrast: bool,
+
 /// The mailbox for communicating with the window.
 surface_mailbox: apprt.surface.Mailbox,
 
@@ -407,6 +413,7 @@ pub fn init(alloc: Allocator, options: renderer.Options) !OpenGL {
         .cursor_color = null,
         .default_cursor_color = options.config.cursor_color,
         .cursor_invert = options.config.cursor_invert,
+        .cursor_invert_high_contrast = options.config.cursor_invert_high_contrast,
         .surface_mailbox = options.surface_mailbox,
         .deferred_font_size = .{ .metrics = grid.metrics },
         .deferred_config = .{},
@@ -1740,7 +1747,7 @@ pub fn rebuildCells(
             break :cursor_style;
         }
 
-        const cursor_color = self.cursor_color orelse self.default_cursor_color orelse color: {
+        var cursor_color = self.cursor_color orelse self.default_cursor_color orelse color: {
             if (self.cursor_invert) {
                 // Use the foreground color from the cell under the cursor, if any.
                 const sty = screen.cursor.page_pin.style(screen.cursor.page_cell);
@@ -1753,6 +1760,14 @@ pub fn rebuildCells(
                 break :color self.foreground_color orelse self.default_foreground_color;
             }
         };
+        if (self.cursor_invert and self.cursor_invert_high_contrast) {
+            if (cursor_color.luminance() < 0.5) {
+                cursor_color = .{ 0, 0 , 0 , 255};
+            }
+            else {
+                cursor_color = .{ 255, 255, 255, 255};
+            }
+        }
 
         _ = try self.addCursor(screen, cursor_style, cursor_color);
         for (cursor_cells.items) |*cell| {

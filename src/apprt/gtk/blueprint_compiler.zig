@@ -25,7 +25,7 @@ pub fn main() !void {
         });
         try file.writeAll(
             \\<?xml version="1.0" encoding="UTF-8"?>
-            \\<interface domain="com.mitchellh.ghostty"/>
+            \\<interface domain="com.ghostty.terminal"/>
         );
         defer file.close();
 
