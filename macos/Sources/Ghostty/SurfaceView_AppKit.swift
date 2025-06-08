@@ -6,7 +6,7 @@ import GhosttyKit
 
 extension Ghostty {
     /// The NSView implementation for a terminal surface.
-    class SurfaceView: OSView, ObservableObject {
+    class SurfaceView: OSView, ObservableObject, Codable {
         /// Unique ID per surface
         let uuid: UUID
 
@@ -279,22 +279,14 @@ extension Ghostty {
             // Remove ourselves from secure input if we have to
             SecureInput.shared.removeScoped(ObjectIdentifier(self))
 
-            guard let surface = self.surface else { return }
-            ghostty_surface_free(surface)
-        }
-
-        /// Close the surface early. This will free the associated Ghostty surface and the view will
-        /// no longer render. The view can never be used again. This is a way for us to free the
-        /// Ghostty resources while references may still be held to this view. I've found that SwiftUI
-        /// tends to hold this view longer than it should so we free the expensive stuff explicitly.
-        func close() {
             // Remove any notifications associated with this surface
             let identifiers = Array(self.notificationIdentifiers)
             UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: identifiers)
 
-            guard let surface = self.surface else { return }
-            ghostty_surface_free(surface)
-            self.surface = nil
+            // Free our core surface resources
+            if let surface = self.surface {
+                ghostty_surface_free(surface)
+            }
         }
 
         func focusDidChange(_ focused: Bool) {
@@ -314,6 +306,14 @@ extension Ghostty {
 
                 // We unset our bell state if we gained focus
                 bell = false
+
+                // Remove any notifications for this surface once we gain focus.
+                if !notificationIdentifiers.isEmpty {
+                    UNUserNotificationCenter.current()
+                        .removeDeliveredNotifications(
+                            withIdentifiers: Array(notificationIdentifiers))
+                    self.notificationIdentifiers = []
+                }
             }
         }
 
@@ -1396,13 +1396,29 @@ extension Ghostty {
                 trigger: nil
             )
 
-            UNUserNotificationCenter.current().add(request) { error in
+            // Note the callback may be executed on a background thread as documented
+            // so we need @MainActor since we're reading/writing view state.
+            UNUserNotificationCenter.current().add(request) { @MainActor error in
                 if let error = error {
                     AppDelegate.logger.error("Error scheduling user notification: \(error)")
                     return
                 }
 
+                // We need to keep track of this notification so we can remove it
+                // under certain circumstances
                 self.notificationIdentifiers.insert(uuid)
+
+                // If we're focused then we schedule to remove the notification
+                // after a few seconds. If we gain focus we automatically remove it
+                // in focusDidChange.
+                if (self.focused) {
+                    Task { @MainActor [weak self] in
+                        try await Task.sleep(for: .seconds(3))
+                        self?.notificationIdentifiers.remove(uuid)
+                        UNUserNotificationCenter.current()
+                            .removeDeliveredNotifications(withIdentifiers: [uuid])
+                    }
+                }
             }
         }
 
@@ -1438,6 +1454,35 @@ extension Ghostty {
                 self.windowTitleFontFamily = config.windowTitleFontFamily
                 self.windowAppearance = .init(ghosttyConfig: config)
             }
+        }
+
+        // MARK: - Codable
+
+        enum CodingKeys: String, CodingKey {
+            case pwd
+            case uuid
+        }
+
+        required convenience init(from decoder: Decoder) throws {
+            // Decoding uses the global Ghostty app
+            guard let del = NSApplication.shared.delegate,
+                  let appDel = del as? AppDelegate,
+                  let app = appDel.ghostty.app else {
+                throw TerminalRestoreError.delegateInvalid
+            }
+
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            let uuid = UUID(uuidString: try container.decode(String.self, forKey: .uuid))
+            var config = Ghostty.SurfaceConfiguration()
+            config.workingDirectory = try container.decode(String?.self, forKey: .pwd)
+
+            self.init(app, baseConfig: config, uuid: uuid)
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(pwd, forKey: .pwd)
+            try container.encode(uuid.uuidString, forKey: .uuid)
         }
     }
 }

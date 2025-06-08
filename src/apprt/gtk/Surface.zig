@@ -746,7 +746,21 @@ pub fn deinit(self: *Surface) void {
     self.core_surface.deinit();
     self.core_surface = undefined;
 
-    if (self.cgroup_path) |path| self.app.core_app.alloc.free(path);
+    // Remove the cgroup if we have one. We do this after deiniting the core
+    // surface to ensure all processes have exited.
+    if (self.cgroup_path) |path| {
+        internal_os.cgroup.remove(path) catch |err| {
+            // We don't want this to be fatal in any way so we just log
+            // and continue. A dangling empty cgroup is not a big deal
+            // and this should be rare.
+            log.warn(
+                "failed to remove cgroup for surface path={s} err={}",
+                .{ path, err },
+            );
+        };
+
+        self.app.core_app.alloc.free(path);
+    }
 
     // Free all our GTK stuff
     //
@@ -1563,7 +1577,7 @@ fn gtkMouseMotion(
     const scaled = self.scaledCoordinates(x, y);
 
     const pos: apprt.CursorPos = .{
-        .x = @floatCast(@max(0, scaled.x)),
+        .x = @floatCast(scaled.x),
         .y = @floatCast(scaled.y),
     };
 
@@ -2438,6 +2452,13 @@ pub fn ringBell(self: *Surface) !void {
         const media_stream = media_file.as(gtk.MediaStream);
         media_stream.setVolume(volume);
         media_stream.play();
+    }
+
+    if (features.attention) {
+        // Request user attention
+        window.winproto.setUrgent(true) catch |err| {
+            log.err("failed to request user attention={}", .{err});
+        };
     }
 
     // Mark tab as needing attention

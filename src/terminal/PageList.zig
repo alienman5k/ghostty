@@ -908,16 +908,6 @@ const ReflowCursor = struct {
             const cell = &cells[x];
             x += 1;
 
-            // std.log.warn("\nsrc_y={} src_x={} dst_y={} dst_x={} dst_cols={} cp={} wide={}", .{
-            //     src_y,
-            //     x,
-            //     self.y,
-            //     self.x,
-            //     self.page.size.cols,
-            //     cell.content.codepoint,
-            //     cell.wide,
-            // });
-
             // Copy cell contents.
             switch (cell.content_tag) {
                 .codepoint,
@@ -937,8 +927,15 @@ const ReflowCursor = struct {
                             };
 
                             // Decrement the source position so that when we
-                            // loop we'll process this source cell again.
+                            // loop we'll process this source cell again,
+                            // since we can't copy it into a spacer head.
                             x -= 1;
+
+                            // Move to the next row (this sets pending wrap
+                            // which will cause us to wrap on the next
+                            // iteration).
+                            self.cursorForward();
+                            continue;
                         } else {
                             self.page_cell.* = cell.*;
                         }
@@ -989,6 +986,17 @@ const ReflowCursor = struct {
             self.page_cell.content_tag = .codepoint;
             self.page_cell.hyperlink = false;
             self.page_cell.style_id = stylepkg.default_id;
+
+            // std.log.warn("\nsrc_y={} src_x={} dst_y={} dst_x={} dst_cols={} cp={X} wide={} page_cell_wide={}", .{
+            //     src_y,
+            //     x,
+            //     self.y,
+            //     self.x,
+            //     self.page.size.cols,
+            //     cell.content.codepoint,
+            //     cell.wide,
+            //     self.page_cell.wide,
+            // });
 
             // Copy grapheme data.
             if (cell.content_tag == .codepoint_grapheme) {
@@ -3570,6 +3578,74 @@ pub const Pin = struct {
         result.x +|= std.math.cast(size.CellCountInt, n) orelse
             std.math.maxInt(size.CellCountInt);
         return result;
+    }
+
+    /// Move the pin left n columns, stopping at the start of the row.
+    pub fn leftClamp(self: Pin, n: size.CellCountInt) Pin {
+        var result = self;
+        result.x -|= n;
+        return result;
+    }
+
+    /// Move the pin right n columns, stopping at the end of the row.
+    pub fn rightClamp(self: Pin, n: size.CellCountInt) Pin {
+        var result = self;
+        result.x = @min(self.x +| n, self.node.data.size.cols - 1);
+        return result;
+    }
+
+    /// Move the pin left n cells, wrapping to the previous row as needed.
+    ///
+    /// If the offset goes beyond the top of the screen, returns null.
+    ///
+    /// TODO: Unit tests.
+    pub fn leftWrap(self: Pin, n: usize) ?Pin {
+        // NOTE: This assumes that all pages have the same width, which may
+        //       be violated under certain circumstances by incomplete reflow.
+        const cols = self.node.data.size.cols;
+        const remaining_in_row = self.x;
+
+        if (n <= remaining_in_row) return self.left(n);
+
+        const extra_after_remaining = n - remaining_in_row;
+
+        const rows_off = 1 + extra_after_remaining / cols;
+
+        switch (self.upOverflow(rows_off)) {
+            .offset => |v| {
+                var result = v;
+                result.x = @intCast(cols - extra_after_remaining % cols);
+                return result;
+            },
+            .overflow => return null,
+        }
+    }
+
+    /// Move the pin right n cells, wrapping to the next row as needed.
+    ///
+    /// If the offset goes beyond the bottom of the screen, returns null.
+    ///
+    /// TODO: Unit tests.
+    pub fn rightWrap(self: Pin, n: usize) ?Pin {
+        // NOTE: This assumes that all pages have the same width, which may
+        //       be violated under certain circumstances by incomplete reflow.
+        const cols = self.node.data.size.cols;
+        const remaining_in_row = cols - self.x - 1;
+
+        if (n <= remaining_in_row) return self.right(n);
+
+        const extra_after_remaining = n - remaining_in_row;
+
+        const rows_off = 1 + extra_after_remaining / cols;
+
+        switch (self.downOverflow(rows_off)) {
+            .offset => |v| {
+                var result = v;
+                result.x = @intCast(extra_after_remaining % cols - 1);
+                return result;
+            },
+            .overflow => return null,
+        }
     }
 
     /// Move the pin down a certain number of rows, or return null if
@@ -8298,6 +8374,125 @@ test "PageList resize reflow less cols to wrap a wide char" {
             const rac = page.getRowAndCell(0, 1);
             try testing.expectEqual(@as(u21, '😀'), rac.cell.content.codepoint);
             try testing.expectEqual(pagepkg.Cell.Wide.wide, rac.cell.wide);
+        }
+        {
+            const rac = page.getRowAndCell(1, 1);
+            try testing.expectEqual(@as(u21, 0), rac.cell.content.codepoint);
+            try testing.expectEqual(pagepkg.Cell.Wide.spacer_tail, rac.cell.wide);
+        }
+    }
+}
+
+test "PageList resize reflow less cols to wrap a multi-codepoint grapheme with a spacer head" {
+    const testing = std.testing;
+    const alloc = testing.allocator;
+
+    var s = try init(alloc, 4, 2, 0);
+    defer s.deinit();
+    {
+        try testing.expect(s.pages.first == s.pages.last);
+        const page = &s.pages.first.?.data;
+
+        // We want to make the screen look like this:
+        //
+        // 👨‍👨‍👦‍👦👨‍👨‍👦‍👦
+
+        // First family emoji at (0, 0)
+        {
+            const rac = page.getRowAndCell(0, 0);
+            rac.cell.* = .{
+                .content_tag = .codepoint,
+                .content = .{ .codepoint = 0x1F468 }, // First codepoint of the grapheme
+                .wide = .wide,
+            };
+            try page.setGraphemes(rac.row, rac.cell, &.{
+                0x200D, 0x1F468,
+                0x200D, 0x1F466,
+                0x200D, 0x1F466,
+            });
+        }
+        {
+            const rac = page.getRowAndCell(1, 0);
+            rac.cell.* = .{
+                .content_tag = .codepoint,
+                .content = .{ .codepoint = 0 },
+                .wide = .spacer_tail,
+            };
+        }
+        // Second family emoji at (2, 0)
+        {
+            const rac = page.getRowAndCell(2, 0);
+            rac.cell.* = .{
+                .content_tag = .codepoint,
+                .content = .{ .codepoint = 0x1F468 }, // First codepoint of the grapheme
+                .wide = .wide,
+            };
+            try page.setGraphemes(rac.row, rac.cell, &.{
+                0x200D, 0x1F468,
+                0x200D, 0x1F466,
+                0x200D, 0x1F466,
+            });
+        }
+        {
+            const rac = page.getRowAndCell(3, 0);
+            rac.cell.* = .{
+                .content_tag = .codepoint,
+                .content = .{ .codepoint = 0 },
+                .wide = .spacer_tail,
+            };
+        }
+    }
+
+    // Resize
+    try s.resize(.{ .cols = 3, .reflow = true });
+    try testing.expectEqual(@as(usize, 3), s.cols);
+    try testing.expectEqual(@as(usize, 2), s.totalRows());
+
+    {
+        try testing.expect(s.pages.first == s.pages.last);
+        const page = &s.pages.first.?.data;
+
+        {
+            const rac = page.getRowAndCell(0, 0);
+            try testing.expectEqual(@as(u21, 0x1F468), rac.cell.content.codepoint);
+            try testing.expectEqual(pagepkg.Cell.Wide.wide, rac.cell.wide);
+
+            const cps = page.lookupGrapheme(rac.cell).?;
+            try testing.expectEqual(@as(usize, 6), cps.len);
+            try testing.expectEqual(@as(u21, 0x200D), cps[0]);
+            try testing.expectEqual(@as(u21, 0x1F468), cps[1]);
+            try testing.expectEqual(@as(u21, 0x200D), cps[2]);
+            try testing.expectEqual(@as(u21, 0x1F466), cps[3]);
+            try testing.expectEqual(@as(u21, 0x200D), cps[4]);
+            try testing.expectEqual(@as(u21, 0x1F466), cps[5]);
+
+            // Row should be wrapped
+            try testing.expect(rac.row.wrap);
+        }
+        {
+            const rac = page.getRowAndCell(1, 0);
+            try testing.expectEqual(@as(u21, 0), rac.cell.content.codepoint);
+            try testing.expectEqual(pagepkg.Cell.Wide.spacer_tail, rac.cell.wide);
+        }
+        {
+            const rac = page.getRowAndCell(2, 0);
+            try testing.expectEqual(@as(u21, 0), rac.cell.content.codepoint);
+            try testing.expectEqual(pagepkg.Cell.Wide.spacer_head, rac.cell.wide);
+        }
+
+        {
+            const rac = page.getRowAndCell(0, 0);
+            try testing.expectEqual(@as(u21, 0x1F468), rac.cell.content.codepoint);
+            try testing.expectEqual(pagepkg.Cell.Wide.wide, rac.cell.wide);
+
+            const cps = page.lookupGrapheme(rac.cell).?;
+            try testing.expectEqual(@as(usize, 6), cps.len);
+            try testing.expectEqual(@as(u21, 0x200D), cps[0]);
+            try testing.expectEqual(@as(u21, 0x1F468), cps[1]);
+            try testing.expectEqual(@as(u21, 0x200D), cps[2]);
+            try testing.expectEqual(@as(u21, 0x1F466), cps[3]);
+            try testing.expectEqual(@as(u21, 0x200D), cps[4]);
+            try testing.expectEqual(@as(u21, 0x1F466), cps[5]);
         }
         {
             const rac = page.getRowAndCell(1, 1);

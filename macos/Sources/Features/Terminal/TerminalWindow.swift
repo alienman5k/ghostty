@@ -45,6 +45,17 @@ class TerminalWindow: NSWindow {
         },
     ]
 
+    // false if all three traffic lights are missing/hidden, otherwise true
+    private var hasWindowButtons: Bool {
+        get {
+            // if standardWindowButton(.theButton) == nil, the button isn't there, so coalesce to true
+            let closeIsHidden = standardWindowButton(.closeButton)?.isHiddenOrHasHiddenAncestor ?? true
+            let miniaturizeIsHidden = standardWindowButton(.miniaturizeButton)?.isHiddenOrHasHiddenAncestor ?? true
+            let zoomIsHidden = standardWindowButton(.zoomButton)?.isHiddenOrHasHiddenAncestor ?? true
+            return !(closeIsHidden && miniaturizeIsHidden && zoomIsHidden)
+        }
+    }
+
     // Both of these must be true for windows without decorations to be able to
     // still become key/main and receive events.
     override var canBecomeKey: Bool { return true }
@@ -66,7 +77,7 @@ class TerminalWindow: NSWindow {
 		if titlebarTabs {
 			generateToolbar()
 		}
-        
+
         level = UserDefaults.standard.value(forKey: Self.defaultLevelKey) as? NSWindow.Level ?? .normal
     }
 
@@ -153,7 +164,7 @@ class TerminalWindow: NSWindow {
         // This is required because the removeTitlebarAccessoryViewController hook does not
         // catch the creation of a new window by "tearing off" a tab from a tabbed window.
         if let tabGroup = self.tabGroup, tabGroup.windows.count < 2 {
-            hideCustomTabBarViews()
+            resetCustomTabBarViews()
         }
 
         super.becomeKey()
@@ -372,21 +383,11 @@ class TerminalWindow: NSWindow {
     private func updateResetZoomTitlebarButtonVisibility() {
         guard let tabGroup, let resetZoomTitlebarAccessoryViewController else { return }
 
-		let isHidden = tabGroup.isTabBarVisible ? true : !surfaceIsZoomed
+        if !titlebarAccessoryViewControllers.contains(resetZoomTitlebarAccessoryViewController) {
+            addTitlebarAccessoryViewController(resetZoomTitlebarAccessoryViewController)
+        }
 
-		if titlebarTabs {
-			resetZoomToolbarButton.isHidden = isHidden
-
-			for (index, vc) in titlebarAccessoryViewControllers.enumerated() {
-				guard vc == resetZoomTitlebarAccessoryViewController else { return }
-				removeTitlebarAccessoryViewController(at: index)
-			}
-		} else {
-			if !titlebarAccessoryViewControllers.contains(resetZoomTitlebarAccessoryViewController) {
-				addTitlebarAccessoryViewController(resetZoomTitlebarAccessoryViewController)
-			}
-			resetZoomTitlebarAccessoryViewController.view.isHidden = isHidden
-		}
+        resetZoomTitlebarAccessoryViewController.view.isHidden = tabGroup.isTabBarVisible ? true : !surfaceIsZoomed
     }
 
 	private func generateResetZoomButton() -> NSButton {
@@ -549,23 +550,33 @@ class TerminalWindow: NSWindow {
         let isTabBar = titlebarAccessoryViewControllers[index].identifier == Self.TabBarController
         super.removeTitlebarAccessoryViewController(at: index)
         if (isTabBar) {
-            hideCustomTabBarViews()
+            resetCustomTabBarViews()
         }
     }
 
     // To be called immediately after the tab bar is disabled.
-    private func hideCustomTabBarViews() {
+    private func resetCustomTabBarViews() {
         // Hide the window buttons backdrop.
         windowButtonsBackdrop?.isHidden = true
 
         // Hide the window drag handle.
         windowDragHandle?.isHidden = true
+
+        // Reenable the main toolbar title
+        if let toolbar = toolbar as? TerminalToolbar {
+            toolbar.titleIsHidden = false
+        }
     }
 
     private func pushTabsToTitlebar(_ tabBarController: NSTitlebarAccessoryViewController) {
         // We need a toolbar as a target for our titlebar tabs.
         if (toolbar == nil) {
             generateToolbar()
+        }
+
+        // The main title conflicts with titlebar tabs, so hide it
+        if let toolbar = toolbar as? TerminalToolbar {
+            toolbar.titleIsHidden = true
         }
 
         // HACK: wait a tick before doing anything, to avoid edge cases during startup... :/
@@ -614,7 +625,7 @@ class TerminalWindow: NSWindow {
 
         view.translatesAutoresizingMaskIntoConstraints = false
         view.leftAnchor.constraint(equalTo: toolbarView.leftAnchor).isActive = true
-        view.rightAnchor.constraint(equalTo: toolbarView.leftAnchor, constant: 78).isActive = true
+        view.rightAnchor.constraint(equalTo: toolbarView.leftAnchor, constant: hasWindowButtons ? 78 : 0).isActive = true
         view.topAnchor.constraint(equalTo: toolbarView.topAnchor).isActive = true
         view.heightAnchor.constraint(equalTo: toolbarView.heightAnchor).isActive = true
 
