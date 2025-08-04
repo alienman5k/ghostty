@@ -106,6 +106,10 @@ default_cursor_color: ?terminal.color.RGB,
 /// foreground color as the cursor color.
 cursor_invert: bool,
 
+/// Improve the color of the cursor to have a higher contrast when inverting 
+/// the colors
+cursor_invert_high_contrast: bool,
+
 /// The current set of cells to render. This is rebuilt on every frame
 /// but we keep this around so that we don't reallocate. Each set of
 /// cells goes into a separate shader.
@@ -425,6 +429,7 @@ pub const DerivedConfig = struct {
     font_styles: font.CodepointResolver.StyleStatus,
     cursor_color: ?terminal.color.RGB,
     cursor_invert: bool,
+    cursor_invert_high_contrast: bool,
     cursor_opacity: f64,
     cursor_text: ?terminal.color.RGB,
     background: terminal.color.RGB,
@@ -483,6 +488,7 @@ pub const DerivedConfig = struct {
                 null,
 
             .cursor_invert = cursor_invert,
+            .cursor_invert_high_contrast = config.@"cursor-invert-high-contrast",
 
             .cursor_text = if (config.@"cursor-text") |txt|
                 txt.toTerminalRGB()
@@ -695,6 +701,7 @@ pub fn init(alloc: Allocator, options: renderer.Options) !Metal {
         .cursor_color = null,
         .default_cursor_color = options.config.cursor_color,
         .cursor_invert = options.config.cursor_invert,
+        .cursor_invert_high_contrast = options.config.cursor_invert_high_contrast,
 
         // Render state
         .cells = .{},
@@ -2962,6 +2969,17 @@ fn rebuildCells(
                 uniform_color.b,
                 255,
             };
+            //TODO: Ignacio -> Do some testing to ensure this works fine on any conditions
+            if (self.cursor_invert and self.cursor_invert_high_contrast) {
+                if (uniform_color.luminance() < 0.5) {
+                    self.uniforms.cursor_color = .{ 0, 0, 0, 255, };
+                }
+                else {
+                    //This might not be required at all as current one looks ok, but this might give better contrast?
+                    //Will be testing how this looks turned on for different themes
+                    self.uniforms.cursor_color = .{ 255, 255, 255, 255, };
+                }
+            }
         }
     }
 
